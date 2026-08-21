@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 
 from audio.voix import parler, jouer_son
-from notifications import notifier_telephone
+from actions.notifications import notifier_telephone
 
 
 DOSSIER_DATA = "data"
