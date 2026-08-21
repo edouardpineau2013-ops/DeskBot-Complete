@@ -13,7 +13,8 @@ from actions.notifications import notifier_telephone
 # CONFIGURATION
 # =========================================================
 
-DOSSIER_DATA = "data"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DOSSIER_DATA = os.path.join(BASE_DIR, "data")
 FICHIER_ALARMES = os.path.join(DOSSIER_DATA, "alarmes.json")
 
 # Fuseau horaire de Paris
