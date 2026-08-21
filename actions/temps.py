@@ -3,15 +3,35 @@ import time
 import os
 import json
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from audio.voix import parler, jouer_son
 from actions.notifications import notifier_telephone
 
 
+# =========================================================
+# CONFIGURATION
+# =========================================================
+
 DOSSIER_DATA = "data"
 FICHIER_ALARMES = os.path.join(DOSSIER_DATA, "alarmes.json")
 
+# Fuseau horaire de Paris
+FUSEAU_PARIS = ZoneInfo("Europe/Paris")
+
 gestionnaire_lance = False
+
+
+# =========================================================
+# HEURE ACTUELLE
+# =========================================================
+
+def maintenant_paris():
+    """
+    Retourne la date et l'heure actuelles
+    dans le fuseau Europe/Paris.
+    """
+    return datetime.now(FUSEAU_PARIS)
 
 
 # =========================================================
@@ -21,7 +41,10 @@ gestionnaire_lance = False
 def verifier_alarmes(heure, minute):
 
     data = charger_alarmes()
-    aujourd_hui = datetime.now().weekday()
+
+    # Jour actuel en heure de Paris
+    maintenant = maintenant_paris()
+    aujourd_hui = maintenant.weekday()
 
     for alarme in data["alarmes"]:
 
@@ -42,7 +65,10 @@ def verifier_alarmes(heure, minute):
         if jours and aujourd_hui not in jours:
             continue
 
-        # Sonnerie
+        # -------------------------------------------------
+        # SONNERIE
+        # -------------------------------------------------
+
         chemin_son = alarme.get(
             "sonnerie",
             "sonneries/alarme 1.mp3"
@@ -50,12 +76,18 @@ def verifier_alarmes(heure, minute):
 
         jouer_son(chemin_son)
 
-        # Voix DeskBot
+        # -------------------------------------------------
+        # VOIX DESKBOT
+        # -------------------------------------------------
+
         message = "C'est l'heure de votre alarme !"
 
         parler(message)
 
-        # Notification téléphone
+        # -------------------------------------------------
+        # NOTIFICATION TELEPHONE
+        # -------------------------------------------------
+
         notifier_telephone(
             "DeskBot",
             message
@@ -142,14 +174,15 @@ def boucle():
 
         try:
 
-            maintenant = datetime.now()
+            # Heure actuelle de Paris
+            maintenant = maintenant_paris()
 
             cle = (
                 maintenant.hour,
                 maintenant.minute
             )
 
-            # On vérifie une seule fois par minute
+            # Vérification une seule fois par minute
             if cle != derniere_minute:
 
                 derniere_minute = cle
@@ -193,4 +226,7 @@ def lancer_gestionnaire():
 
     gestionnaire_lance = True
 
-    print("⏰ Gestionnaire Temps lancé.")
+    print(
+        "⏰ Gestionnaire Temps lancé "
+        "avec le fuseau Europe/Paris."
+    )
