@@ -1,6 +1,7 @@
 import requests
+import os
 
-CLE_API_ORS = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZmNWI4ZDhhMDNjMDQ3N2JiZTIxNzdhNDRmYWE1NzMzIiwiaCI6Im11cm11cjY0In0="
+CLE_API_ORS = os.environ.get("ORS_API_KEY", "")
 
 PROFILS = {
     "voiture": "driving-car",
