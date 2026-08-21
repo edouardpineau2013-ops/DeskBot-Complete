@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: deskbot
+    runtime: python
+
+    buildCommand: pip install -r requirements.txt
+
+    startCommand: gunicorn serveur:app
+
+    envVars:
+      - key: RENDER
+        value: "true"
+
+      - key: GEMINI_API_KEY
+        sync: false
+
+      - key: GEMINI_API_KEY_2
+        sync: false
+
+      - key: GROQ_API_KEY
+        sync: false
+
+      - key: GROQ_API_KEY_QUESTIONS
+        sync: false
+
+      - key: ORS_API_KEY
+        sync: false
+
+      - key: PRONOTE_URL
+        sync: false
+
+      - key: PRONOTE_IDENTIFIANT
+        sync: false
+
+      - key: PRONOTE_MOT_DE_PASSE
+        sync: false
+
+      - key: DESKBOT_PASSWORD
+        sync: false
