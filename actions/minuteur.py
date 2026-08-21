@@ -185,7 +185,7 @@ class Minuteur:
                 print("🗣️ Voix indisponible :", e)
 
             notifier_telephone(
-                "⏰ DeskBot",
+                "DeskBot",
                 "Le minuteur est terminé."
             )
 
