@@ -59,20 +59,12 @@ def creer_notification(jour, mois, heure, minute, contenu):
         tzinfo=FUSEAU
     )
 
-    # -----------------------------------------------------
-    # Si la date est déjà passée
-    # -----------------------------------------------------
-
     if date_notification <= maintenant:
         print(
             "⚠️ Notification refusée : "
             "la date est déjà passée."
         )
         return False
-
-    # -----------------------------------------------------
-    # Timestamp Unix
-    # -----------------------------------------------------
 
     timestamp = int(date_notification.timestamp())
 
@@ -87,7 +79,7 @@ def creer_notification(jour, mois, heure, minute, contenu):
             f"https://ntfy.sh/{TOPIC_NTFY}",
             data=contenu.encode("utf-8"),
             headers={
-                "Title": "🔔 Notification du DeskBot",
+                "Title": "Notification du DeskBot",
                 "At": str(timestamp)
             },
             timeout=10
