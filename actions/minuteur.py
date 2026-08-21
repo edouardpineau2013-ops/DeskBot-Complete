@@ -162,7 +162,7 @@ class Minuteur:
                 print("🗣️ Voix indisponible :", e)
 
             notifier_telephone(
-                "⏰ DeskBot",
+                "DeskBot",
                 "Les 5 minutes de pause sont terminées."
             )
 
