@@ -3,12 +3,20 @@ import time
 import os
 import json
 from datetime import datetime
-from audio.voix import parler, jouer_son, notifier_telephone
+
+from audio.voix import parler, jouer_son
+from notifications import notifier_telephone
+
 
 DOSSIER_DATA = "data"
 FICHIER_ALARMES = os.path.join(DOSSIER_DATA, "alarmes.json")
 
 gestionnaire_lance = False
+
+
+# =========================================================
+# ALARMES
+# =========================================================
 
 def verifier_alarmes(heure, minute):
 
@@ -17,20 +25,51 @@ def verifier_alarmes(heure, minute):
 
     for alarme in data["alarmes"]:
 
+        # Alarme désactivée
         if not alarme.get("active", False):
             continue
 
-        if alarme.get("heure") != heure or alarme.get("minute") != minute:
+        # Vérification de l'heure
+        if alarme.get("heure") != heure:
             continue
 
+        if alarme.get("minute") != minute:
+            continue
+
+        # Vérification des jours
         jours = alarme.get("jours", [])
+
         if jours and aujourd_hui not in jours:
             continue
 
-        chemin_son = alarme.get("sonnerie", "sonneries/alarme 1.mp3")
+        # Sonnerie
+        chemin_son = alarme.get(
+            "sonnerie",
+            "sonneries/alarme 1.mp3"
+        )
+
         jouer_son(chemin_son)
-        parler("C'est l'heure de votre alarme !")
-        notifier_telephone("🔔 DeskBot", "C'est l'heure de votre alarme !")
+
+        # Voix DeskBot
+        message = "C'est l'heure de votre alarme !"
+
+        parler(message)
+
+        # Notification téléphone
+        notifier_telephone(
+            "DeskBot",
+            message
+        )
+
+        print(
+            f"🔔 Alarme déclenchée : "
+            f"{heure:02d}:{minute:02d}"
+        )
+
+
+# =========================================================
+# FICHIERS
+# =========================================================
 
 def creer_dossier():
 
@@ -44,7 +83,11 @@ def creer_fichier():
 
     if not os.path.exists(FICHIER_ALARMES):
 
-        with open(FICHIER_ALARMES, "w", encoding="utf-8") as f:
+        with open(
+            FICHIER_ALARMES,
+            "w",
+            encoding="utf-8"
+        ) as f:
 
             json.dump(
                 {
@@ -60,14 +103,24 @@ def charger_alarmes():
 
     creer_fichier()
 
-    with open(FICHIER_ALARMES, "r", encoding="utf-8") as f:
+    with open(
+        FICHIER_ALARMES,
+        "r",
+        encoding="utf-8"
+    ) as f:
 
         return json.load(f)
 
 
 def sauvegarder_alarmes(data):
 
-    with open(FICHIER_ALARMES, "w", encoding="utf-8") as f:
+    creer_fichier()
+
+    with open(
+        FICHIER_ALARMES,
+        "w",
+        encoding="utf-8"
+    ) as f:
 
         json.dump(
             data,
@@ -77,25 +130,50 @@ def sauvegarder_alarmes(data):
         )
 
 
+# =========================================================
+# BOUCLE DE SURVEILLANCE
+# =========================================================
+
 def boucle():
 
     derniere_minute = None
 
     while True:
 
-        time.sleep(1)
+        try:
 
-        maintenant = datetime.now()
-        cle = (maintenant.hour, maintenant.minute)
+            maintenant = datetime.now()
 
-        if cle != derniere_minute:
-            derniere_minute = cle
-            verifier_alarmes(maintenant.hour, maintenant.minute)
+            cle = (
+                maintenant.hour,
+                maintenant.minute
+            )
 
-    while True:
+            # On vérifie une seule fois par minute
+            if cle != derniere_minute:
 
-        time.sleep(1)
+                derniere_minute = cle
 
+                verifier_alarmes(
+                    maintenant.hour,
+                    maintenant.minute
+                )
+
+            time.sleep(1)
+
+        except Exception as e:
+
+            print(
+                "❌ Erreur gestionnaire Temps :",
+                e
+            )
+
+            time.sleep(1)
+
+
+# =========================================================
+# LANCEMENT
+# =========================================================
 
 def lancer_gestionnaire():
 
