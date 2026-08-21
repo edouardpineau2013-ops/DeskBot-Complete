@@ -76,19 +76,20 @@ EST_RENDER = os.environ.get("RENDER") == "true"
 
 
 # =========================================================
-# GESTIONNAIRES LOCAUX
+# GESTIONNAIRE DES ALARMES
 # =========================================================
-#
-# Ces gestionnaires servent au DeskBot local.
-# On évite de les lancer sur Render au démarrage du serveur.
-#
+
+try:
+    lancer_gestionnaire()
+except Exception as e:
+    print("⚠️ Impossible de lancer le gestionnaire temps :", e)
+
+
+# =========================================================
+# GESTIONNAIRE DES MAILS
+# =========================================================
 
 if not EST_RENDER:
-    try:
-        lancer_gestionnaire()
-    except Exception as e:
-        print("⚠️ Impossible de lancer le gestionnaire temps :", e)
-
     try:
         lancer_gestionnaire_mails()
     except Exception as e:
