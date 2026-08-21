@@ -9,14 +9,17 @@ TOPIC_NTFY = "deskbot_notifs"
 
 def notifier_telephone(titre, message):
     try:
-        requests.post(
+        response = requests.post(
             f"https://ntfy.sh/{TOPIC_NTFY}",
             data=message.encode("utf-8"),
             headers={
-                "Title": titre.encode("utf-8")
+                "Title": titre
             },
             timeout=5
         )
+
+        print("NTFY STATUS :", response.status_code)
+        print("NTFY REPONSE :", response.text)
 
     except Exception as e:
         print("Erreur notification ntfy :", e)
