@@ -1,7 +1,3 @@
-import os
-
-EST_RENDER = os.getenv("RENDER") == "true"
-
 from rapidfuzz import process, fuzz
 import re
 from datetime import datetime, timedelta
@@ -14,8 +10,7 @@ from actions.chronometre import chronometre
 from actions.minuteur import minuteur
 from actions.alarme import definir_alarme, supprimer_alarme_principale, prochaine_alarme, obtenir_alarme_principale, activer_desactiver_alarme, definir_sonnerie, SONNERIES_DISPONIBLES
 from commandes import trouver_commande, ALIAS_VILLES, extraire_url
-if not EST_RENDER:
-    from actions.musique import jouer_musique, arreter_musique, pause_musique, volume_musique, augmenter_volume, diminuer_volume
+from actions.musique import jouer_musique, arreter_musique, pause_musique, volume_musique, augmenter_volume, diminuer_volume
 from actions.mail import etat_mails_non_lus
 from actions.recherche import rechercher_paragraphe, rechercher_resultat
 from actions.youtube import obtenir_stats_chaine
