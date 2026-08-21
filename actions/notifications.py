@@ -1,11 +1,19 @@
-import threading
-from datetime import datetime
-
 import requests
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
+
+# =========================================================
+# CONFIGURATION
+# =========================================================
 
 TOPIC_NTFY = "deskbot_notifs"
+FUSEAU = ZoneInfo("Europe/Paris")
 
+
+# =========================================================
+# NOTIFICATION IMMEDIATE
+# =========================================================
 
 def notifier_telephone(titre, message):
     try:
@@ -15,19 +23,31 @@ def notifier_telephone(titre, message):
             headers={
                 "Title": titre
             },
-            timeout=5
+            timeout=10
         )
 
-        print("NTFY STATUS :", response.status_code)
-        print("NTFY REPONSE :", response.text)
+        print(
+            f"📱 Notification envoyée | "
+            f"HTTP {response.status_code}"
+        )
+
+        if not response.ok:
+            print("❌ Réponse ntfy :", response.text)
+
+        return response.ok
 
     except Exception as e:
-        print("Erreur notification ntfy :", e)
+        print("❌ Erreur notification ntfy :", e)
+        return False
 
+
+# =========================================================
+# NOTIFICATION PROGRAMMÉE
+# =========================================================
 
 def creer_notification(jour, mois, heure, minute, contenu):
 
-    maintenant = datetime.now()
+    maintenant = datetime.now(FUSEAU)
 
     date_notification = datetime(
         maintenant.year,
@@ -35,27 +55,71 @@ def creer_notification(jour, mois, heure, minute, contenu):
         jour,
         heure,
         minute,
-        0
+        0,
+        tzinfo=FUSEAU
     )
 
-    # Si la date est déjà passée, on ne fait rien
+    # -----------------------------------------------------
+    # Si la date est déjà passée
+    # -----------------------------------------------------
+
     if date_notification <= maintenant:
-        return
+        print(
+            "⚠️ Notification refusée : "
+            "la date est déjà passée."
+        )
+        return False
 
-    delai = (
-        date_notification - maintenant
-    ).total_seconds()
+    # -----------------------------------------------------
+    # Timestamp Unix
+    # -----------------------------------------------------
 
-    def attendre_et_notifier():
+    timestamp = int(date_notification.timestamp())
 
-        threading.Event().wait(delai)
+    print(
+        f"🔔 Création notification : "
+        f"{date_notification.strftime('%d/%m/%Y à %H:%M')}"
+    )
 
-        notifier_telephone(
-            "🔔 Notification du DeskBot",
-            contenu
+    try:
+
+        response = requests.post(
+            f"https://ntfy.sh/{TOPIC_NTFY}",
+            data=contenu.encode("utf-8"),
+            headers={
+                "Title": "🔔 Notification du DeskBot",
+                "At": str(timestamp)
+            },
+            timeout=10
         )
 
-    threading.Thread(
-        target=attendre_et_notifier,
-        daemon=True
-    ).start()
+        print(
+            f"📡 ntfy programmation : "
+            f"HTTP {response.status_code}"
+        )
+
+        if not response.ok:
+            print(
+                "❌ Erreur ntfy :",
+                response.text
+            )
+            return False
+
+        print(
+            "✅ Notification programmée pour",
+            date_notification.strftime(
+                "%d/%m/%Y à %H:%M"
+            )
+        )
+
+        return True
+
+    except Exception as e:
+
+        print(
+            "❌ Erreur lors de la création "
+            "de la notification :",
+            e
+        )
+
+        return False
