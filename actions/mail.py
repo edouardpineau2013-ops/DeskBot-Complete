@@ -18,49 +18,92 @@ FICHIER_VUS = "data/mails_vus.json"
 gestionnaire_mails_lance = False
 
 
+def _chemin_secret(nom):
+    chemin_render = f"/etc/secrets/{nom}"
+
+    if os.path.exists(chemin_render):
+        return chemin_render
+
+    return nom
+
+
+def _chemin_token_mail():
+    # Sur Render, le token initial vient du Secret File.
+    # Le token rafraîchi est conservé temporairement dans /tmp.
+    if os.path.exists("/etc/secrets/token_mail.json"):
+        return "/tmp/token_mail.json"
+
+    return "token_mail.json"
+
+
 def _obtenir_service():
     creds = None
 
+    fichier_token_source = _chemin_secret("token_mail.json")
+    fichier_token = _chemin_token_mail()
+    fichier_credentials = _chemin_secret("credentials_mail.json")
+
     # Récupération de la connexion déjà enregistrée
-    if os.path.exists("token_mail.json"):
+    if os.path.exists(fichier_token):
         creds = Credentials.from_authorized_user_file(
-            "token_mail.json",
+            fichier_token,
             SCOPES
         )
 
+    elif os.path.exists(fichier_token_source):
+        creds = Credentials.from_authorized_user_file(
+            fichier_token_source,
+            SCOPES
+        )
+
+        # Copie initiale dans /tmp sur Render
+        if fichier_token != fichier_token_source:
+            with open(fichier_token, "w", encoding="utf-8") as f:
+                f.write(creds.to_json())
+
     # Connexion encore valide
     if creds and creds.valid:
-        return build("gmail", "v1", credentials=creds)
+        return build(
+            "gmail",
+            "v1",
+            credentials=creds
+        )
 
-    # Le token d'accès a expiré, mais le refresh token permet
-    # de le renouveler automatiquement.
+    # Token expiré mais renouvelable
     if creds and creds.expired and creds.refresh_token:
         try:
             creds.refresh(Request())
 
-            with open("token_mail.json", "w", encoding="utf-8") as f:
+            with open(fichier_token, "w", encoding="utf-8") as f:
                 f.write(creds.to_json())
 
-            return build("gmail", "v1", credentials=creds)
+            return build(
+                "gmail",
+                "v1",
+                credentials=creds
+            )
 
         except Exception as e:
             print("⚠️ Impossible de renouveler le token Gmail :", e)
-            print("⚠️ Le refresh token est invalide. Autorisation Gmail nécessaire.")
+            print("⚠️ Le refresh token est invalide.")
             return None
 
-    # Première connexion OU ancienne connexion révoquée
+    # Première connexion
     flow = InstalledAppFlow.from_client_secrets_file(
-        "credentials_mail.json",
+        fichier_credentials,
         SCOPES
     )
 
     creds = flow.run_local_server(port=0)
 
-    # On sauvegarde le refresh token
-    with open("token_mail.json", "w", encoding="utf-8") as f:
+    with open(fichier_token, "w", encoding="utf-8") as f:
         f.write(creds.to_json())
 
-    return build("gmail", "v1", credentials=creds)
+    return build(
+        "gmail",
+        "v1",
+        credentials=creds
+    )
 
 
 def _charger_vus():
