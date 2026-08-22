@@ -35,75 +35,41 @@ else:
 def obtenir_service_agenda():
     creds = None
 
-    # =====================================================
-    # CHARGEMENT DU TOKEN
-    # =====================================================
-
     if os.path.exists(FICHIER_TOKEN):
         try:
             creds = Credentials.from_authorized_user_file(
                 FICHIER_TOKEN,
                 SCOPES
             )
-        except Exception as e:
-            print(f"⚠️ Impossible de charger le token Agenda : {e}")
-            creds = None
-
-    # =====================================================
-    # RENOUVELLEMENT DU TOKEN
-    # =====================================================
-
-    if creds and creds.expired and creds.refresh_token:
-
-        try:
-            creds.refresh(Request())
 
         except Exception as e:
-
             print(
-                f"⚠️ Impossible de renouveler le token Agenda : {e}"
+                f"⚠️ Impossible de charger le token Agenda : {e}"
             )
 
-            # Le refresh token est probablement révoqué
             creds = None
 
-            try:
-                os.remove(FICHIER_TOKEN)
-                print("🗑️ Ancien token Agenda supprimé.")
-            except OSError:
-                pass
+    elif os.path.exists(FICHIER_TOKEN_SOURCE):
+        try:
+            creds = Credentials.from_authorized_user_file(
+                FICHIER_TOKEN_SOURCE,
+                SCOPES
+            )
 
-    # =====================================================
-    # NOUVELLE AUTHENTIFICATION
-    # =====================================================
+            if FICHIER_TOKEN != FICHIER_TOKEN_SOURCE:
+                with open(
+                    FICHIER_TOKEN,
+                    "w",
+                    encoding="utf-8"
+                ) as token:
+                    token.write(creds.to_json())
 
-    if not creds or not creds.valid:
+        except Exception as e:
+            print(
+                f"⚠️ Impossible de charger le token Agenda : {e}"
+            )
 
-        print("🔐 Nouvelle authentification Google Agenda...")
-
-        flow = InstalledAppFlow.from_client_secrets_file(
-            FICHIER_CREDENTIALS,
-            SCOPES
-        )
-
-        creds = flow.run_local_server(
-            port=0,
-            access_type="offline",
-            prompt="consent"
-        )
-
-    # =====================================================
-    # SAUVEGARDE
-    # =====================================================
-
-    with open(FICHIER_TOKEN, "w") as token:
-        token.write(creds.to_json())
-
-    return build(
-        "calendar",
-        "v3",
-        credentials=creds
-    )
+            creds = None
 
 
 # ============================================================
