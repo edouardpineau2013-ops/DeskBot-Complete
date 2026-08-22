@@ -35,6 +35,10 @@ else:
 def obtenir_service_agenda():
     creds = None
 
+    # ========================================================
+    # 1. Chercher le token existant
+    # ========================================================
+
     if os.path.exists(FICHIER_TOKEN):
         try:
             creds = Credentials.from_authorized_user_file(
@@ -46,7 +50,6 @@ def obtenir_service_agenda():
             print(
                 f"⚠️ Impossible de charger le token Agenda : {e}"
             )
-
             creds = None
 
     elif os.path.exists(FICHIER_TOKEN_SOURCE):
@@ -56,6 +59,8 @@ def obtenir_service_agenda():
                 SCOPES
             )
 
+            # Sur Render :
+            # copie du token Secret File vers /tmp
             if FICHIER_TOKEN != FICHIER_TOKEN_SOURCE:
                 with open(
                     FICHIER_TOKEN,
@@ -68,8 +73,100 @@ def obtenir_service_agenda():
             print(
                 f"⚠️ Impossible de charger le token Agenda : {e}"
             )
+            creds = None
+
+    # ========================================================
+    # 2. Token valide
+    # ========================================================
+
+    if creds and creds.valid:
+        return build(
+            "calendar",
+            "v3",
+            credentials=creds
+        )
+
+    # ========================================================
+    # 3. Token expiré → renouvellement
+    # ========================================================
+
+    if creds and creds.expired and creds.refresh_token:
+
+        try:
+            print("🔄 Renouvellement du token Google Agenda...")
+
+            creds.refresh(Request())
+
+            # On sauvegarde dans /tmp sur Render
+            # ou dans token_agenda.json en local
+            with open(
+                FICHIER_TOKEN,
+                "w",
+                encoding="utf-8"
+            ) as token:
+                token.write(creds.to_json())
+
+            print("✅ Token Google Agenda renouvelé")
+
+            return build(
+                "calendar",
+                "v3",
+                credentials=creds
+            )
+
+        except Exception as e:
+            print(
+                f"⚠️ Impossible de renouveler le token Agenda : {e}"
+            )
 
             creds = None
+
+    # ========================================================
+    # 4. Pas de token valide
+    # ========================================================
+
+    # Sur Render, impossible de lancer OAuth
+    # car aucun navigateur local ne peut être ouvert.
+    if os.path.exists("/etc/secrets/token_agenda.json"):
+
+        print(
+            "❌ Token Google Agenda invalide ou expiré "
+            "et aucun refresh token disponible."
+        )
+
+        return None
+
+    # ========================================================
+    # 5. Première connexion en local
+    # ========================================================
+
+    print("🔐 Nouvelle authentification Google Agenda...")
+
+    flow = InstalledAppFlow.from_client_secrets_file(
+        FICHIER_CREDENTIALS,
+        SCOPES
+    )
+
+    creds = flow.run_local_server(
+        port=0,
+        access_type="offline",
+        prompt="consent"
+    )
+
+    with open(
+        FICHIER_TOKEN,
+        "w",
+        encoding="utf-8"
+    ) as token:
+        token.write(creds.to_json())
+
+    print("✅ Connexion Google Agenda enregistrée")
+
+    return build(
+        "calendar",
+        "v3",
+        credentials=creds
+    )
 
 
 # ============================================================
