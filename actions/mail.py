@@ -89,11 +89,15 @@ def _obtenir_service():
             return None
 
     # Première connexion
+    if os.path.exists("/etc/secrets/token_mail.json"):
+        print("❌ Token Gmail Render invalide ou expiré sans refresh token.")
+        return None
+    
     flow = InstalledAppFlow.from_client_secrets_file(
         fichier_credentials,
         SCOPES
     )
-
+    
     creds = flow.run_local_server(port=0)
 
     with open(fichier_token, "w", encoding="utf-8") as f:
