@@ -10,9 +10,27 @@ from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
-FICHIER_CREDENTIALS = "credentials_agenda.json"
-FICHIER_TOKEN = "token_agenda.json"
+def _chemin_secret(nom):
+    chemin_render = f"/etc/secrets/{nom}"
 
+    if os.path.exists(chemin_render):
+        return chemin_render
+
+    return nom
+
+
+FICHIER_CREDENTIALS = _chemin_secret(
+    "credentials_agenda.json"
+)
+
+FICHIER_TOKEN_SOURCE = _chemin_secret(
+    "token_agenda.json"
+)
+
+if os.path.exists("/etc/secrets/token_agenda.json"):
+    FICHIER_TOKEN = "/tmp/token_agenda.json"
+else:
+    FICHIER_TOKEN = "token_agenda.json"
 
 def obtenir_service_agenda():
     creds = None
