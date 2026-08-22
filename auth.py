@@ -199,6 +199,7 @@ def token_valide(token):
             signature,
             signature_attendue
         ):
+            print("❌ Signature token invalide")
             return False
 
         # ----------------------------------------------------
