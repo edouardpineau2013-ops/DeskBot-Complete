@@ -9,6 +9,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 from audio.voix import parler, notifier_telephone
+from actions.notifications import notifier_telephone
 
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
@@ -144,7 +145,7 @@ def _boucle_mails(intervalle_secondes=180):
             for expediteur, sujet in nouveaux:
                 message = f"Nouveau mail de {expediteur} : {sujet}"
                 parler(message)
-                notifier_telephone("📧 DeskBot", message)
+                notifier_telephone("DeskBot", message)
         except Exception as e:
             print("Erreur vérification mails :", e)
 
