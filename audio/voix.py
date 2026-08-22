@@ -130,7 +130,7 @@ def parler(texte):
 
     finally:
 
-        definir_etat("attente")
+        definir_etat("connecté")
 
         if fichier and os.path.exists(fichier):
 
