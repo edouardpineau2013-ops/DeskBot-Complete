@@ -117,6 +117,8 @@ def acces_autorise():
         and token_valide(token)
     )
 
+definir_etat("connecté")
+
 
 # =========================================================
 # PAGE PRINCIPALE
@@ -922,7 +924,7 @@ def commande():
         )
 
         definir_etat(
-            "attente"
+            "connecté"
         )
 
         return jsonify({
@@ -937,7 +939,7 @@ def commande():
         )
 
         definir_etat(
-            "attente"
+            "connecté"
         )
 
         return jsonify({
