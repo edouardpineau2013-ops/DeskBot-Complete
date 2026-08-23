@@ -7,7 +7,6 @@ beautifulsoup4==4.14.2
 lxml==6.1.1
 
 RapidFuzz==3.14.5
-edge-tts==7.2.8
 
 groq==1.6.0
 
@@ -45,3 +44,6 @@ playwright==1.61.0
 pronotepy==2.14.6
 
 psutil==7.2.2
+
+Pillow
+pikepdf
