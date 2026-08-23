@@ -893,43 +893,42 @@ def compresser():
                 "erreur": "Non autorisé"
             }), 401
 
-        if "fichier" not in request.files:
+        # =========================================================
+        # RÉCUPÉRATION DES FICHIERS
+        # =========================================================
+
+        fichiers = request.files.getlist("fichiers")
+
+        if not fichiers:
             return jsonify({
                 "succes": False,
                 "erreur": "Aucun fichier envoyé."
             }), 400
 
-        fichier = request.files["fichier"]
+        # Retirer les éventuels champs sans fichier
+        fichiers = [
+            fichier
+            for fichier in fichiers
+            if fichier and fichier.filename
+        ]
 
-        if not fichier.filename:
+        if not fichiers:
             return jsonify({
                 "succes": False,
                 "erreur": "Aucun fichier sélectionné."
             }), 400
 
-        nom = secure_filename(fichier.filename)
-
-        if not nom:
-            return jsonify({
-                "succes": False,
-                "erreur": "Nom de fichier invalide."
-            }), 400
-
-        type_fichier = detecter_type(nom)
-
-        if type_fichier is None:
-            return jsonify({
-                "succes": False,
-                "erreur": (
-                    "Format non supporté. "
-                    "Formats acceptés : "
-                    "JPG, JPEG, PNG, WEBP, BMP, TIFF, "
-                    "MP4, MOV, MKV, AVI, WEBM, M4V et PDF."
-                )
-            }), 400
+        # =========================================================
+        # IMPORTS
+        # =========================================================
 
         import tempfile
+        import zipfile
         from pathlib import Path
+
+        # =========================================================
+        # DOSSIER TEMPORAIRE
+        # =========================================================
 
         with tempfile.TemporaryDirectory(
             prefix="deskbot_compresseur_"
@@ -937,65 +936,232 @@ def compresser():
 
             temp_dir = Path(temp_dir)
 
-            fichier_original = temp_dir / nom
-            fichier_compresse = (
-                temp_dir /
-                f"{Path(nom).stem}_compressed{Path(nom).suffix}"
+            dossier_entree = temp_dir / "entree"
+            dossier_sortie = temp_dir / "sortie"
+
+            dossier_entree.mkdir()
+            dossier_sortie.mkdir()
+
+            fichiers_compresses = []
+
+            # =====================================================
+            # TRAITEMENT DE CHAQUE FICHIER
+            # =====================================================
+
+            for index, fichier in enumerate(fichiers):
+
+                nom = secure_filename(fichier.filename)
+
+                if not nom:
+                    continue
+
+                type_fichier = detecter_type(nom)
+
+                if type_fichier is None:
+                    return jsonify({
+                        "succes": False,
+                        "erreur": (
+                            f"Format non supporté pour "
+                            f"« {fichier.filename} ». "
+                            "Formats acceptés : "
+                            "JPG, JPEG, PNG, WEBP, BMP, TIFF, "
+                            "MP4, MOV, MKV, AVI, WEBM, M4V et PDF."
+                        )
+                    }), 400
+
+                # -------------------------------------------------
+                # Évite les conflits si plusieurs fichiers ont
+                # exactement le même nom
+                # -------------------------------------------------
+
+                nom_original = Path(nom)
+
+                nom_entree = nom
+
+                if (dossier_entree / nom_entree).exists():
+                    nom_entree = (
+                        f"{nom_original.stem}_"
+                        f"{index + 1}"
+                        f"{nom_original.suffix}"
+                    )
+
+                fichier_original = dossier_entree / nom_entree
+
+                # -------------------------------------------------
+                # Nom du fichier compressé
+                # -------------------------------------------------
+
+                fichier_compresse = (
+                    dossier_sortie /
+                    f"{Path(nom_entree).stem}_compressed"
+                    f"{Path(nom_entree).suffix}"
+                )
+
+                # -------------------------------------------------
+                # Sauvegarde
+                # -------------------------------------------------
+
+                fichier.save(fichier_original)
+
+                print(
+                    f"📦 Compression : {nom_entree} "
+                    f"({type_fichier})"
+                )
+
+                # -------------------------------------------------
+                # Compression
+                # -------------------------------------------------
+
+                resultat = compresser_fichier(
+                    fichier_original,
+                    fichier_compresse
+                )
+
+                print(
+                    f"✅ Compression terminée : "
+                    f"{resultat['taille_avant']} → "
+                    f"{resultat['taille_apres']} octets "
+                    f"({resultat['reduction']} %)"
+                )
+
+                fichiers_compresses.append({
+                    "fichier": fichier_compresse,
+                    "nom": fichier_compresse.name,
+                    "type": type_fichier,
+                    "taille_avant": resultat["taille_avant"],
+                    "taille_apres": resultat["taille_apres"],
+                    "reduction": resultat["reduction"]
+                })
+
+            # =====================================================
+            # VÉRIFICATION
+            # =====================================================
+
+            if not fichiers_compresses:
+                return jsonify({
+                    "succes": False,
+                    "erreur": "Aucun fichier n'a pu être compressé."
+                }), 400
+
+            # =====================================================
+            # CRÉATION DU ZIP
+            # =====================================================
+
+            zip_path = temp_dir / "fichiers_compresse.zip"
+
+            with zipfile.ZipFile(
+                zip_path,
+                "w",
+                compression=zipfile.ZIP_DEFLATED
+            ) as archive:
+
+                for element in fichiers_compresses:
+
+                    archive.write(
+                        element["fichier"],
+                        arcname=element["nom"]
+                    )
+
+            # =====================================================
+            # STATISTIQUES
+            # =====================================================
+
+            taille_avant_totale = sum(
+                element["taille_avant"]
+                for element in fichiers_compresses
             )
 
-            # Sauvegarde temporaire du fichier envoyé
-            fichier.save(fichier_original)
+            taille_apres_totale = sum(
+                element["taille_apres"]
+                for element in fichiers_compresses
+            )
+
+            taille_zip = zip_path.stat().st_size
+
+            if taille_avant_totale > 0:
+                reduction_totale = round(
+                    (
+                        1 -
+                        (
+                            taille_apres_totale /
+                            taille_avant_totale
+                        )
+                    ) * 100,
+                    2
+                )
+            else:
+                reduction_totale = 0
 
             print(
-                f"📦 Compression : {nom} "
-                f"({type_fichier})"
+                f"📦 ZIP créé : "
+                f"{len(fichiers_compresses)} fichier(s)"
             )
-
-            # Compression
-            resultat = compresser_fichier(
-                fichier_original,
-                fichier_compresse
-            )
-
-            nom_final = fichier_compresse.name
 
             print(
-                f"✅ Compression terminée : "
-                f"{resultat['taille_avant']} → "
-                f"{resultat['taille_apres']} octets "
-                f"({resultat['reduction']} %)"
+                f"📊 Taille avant : "
+                f"{taille_avant_totale} octets"
             )
 
-            # Retour du fichier au navigateur
+            print(
+                f"📊 Taille après compression : "
+                f"{taille_apres_totale} octets"
+            )
+
+            print(
+                f"📦 Taille du ZIP : "
+                f"{taille_zip} octets"
+            )
+
+            print(
+                f"📉 Réduction : "
+                f"{reduction_totale} %"
+            )
+
+            # =====================================================
+            # RETOUR DU ZIP
+            # =====================================================
+
             return Response(
-                fichier_compresse.read_bytes(),
-                mimetype="application/octet-stream",
+                zip_path.read_bytes(),
+                mimetype="application/zip",
                 headers={
                     "Content-Disposition":
-                        f'attachment; filename="{nom_final}"',
+                        'attachment; filename="fichiers_compresse.zip"',
+
+                    "X-Nombre-Fichiers":
+                        str(len(fichiers_compresses)),
 
                     "X-Taille-Avant":
-                        str(resultat["taille_avant"]),
+                        str(taille_avant_totale),
 
                     "X-Taille-Apres":
-                        str(resultat["taille_apres"]),
+                        str(taille_apres_totale),
+
+                    "X-Taille-Zip":
+                        str(taille_zip),
 
                     "X-Reduction":
-                        str(resultat["reduction"]),
-
-                    "X-Type":
-                        type_fichier
+                        str(reduction_totale)
                 }
             )
 
+    # =============================================================
+    # ERREURS
+    # =============================================================
+
     except ValueError as e:
+
         return jsonify({
             "succes": False,
             "erreur": str(e)
         }), 400
 
     except RuntimeError as e:
-        print("❌ Erreur compresseur :", e)
+
+        print(
+            "❌ Erreur compresseur :",
+            e
+        )
 
         return jsonify({
             "succes": False,
@@ -1003,7 +1169,11 @@ def compresser():
         }), 500
 
     except Exception as e:
-        print("❌ Erreur compression :", e)
+
+        print(
+            "❌ Erreur compression :",
+            e
+        )
 
         return jsonify({
             "succes": False,
