@@ -61,6 +61,8 @@ from actions.notes import (
 
 from actions.ia import extraire_fichier_avec_gemini
 
+from actions.compresseur import compresser_fichier, detecter_type
+
 
 # =========================================================
 # CONFIGURATION
@@ -881,6 +883,135 @@ IMPORTANT :
 
         if os.path.exists(chemin_temp):
             os.remove(chemin_temp)
+
+@app.route("/compresser", methods=["POST"])
+def compresser():
+    try:
+        if not acces_autorise():
+            return jsonify({
+                "succes": False,
+                "erreur": "Non autorisé"
+            }), 401
+
+        if "fichier" not in request.files:
+            return jsonify({
+                "succes": False,
+                "erreur": "Aucun fichier envoyé."
+            }), 400
+
+        fichier = request.files["fichier"]
+
+        if not fichier.filename:
+            return jsonify({
+                "succes": False,
+                "erreur": "Aucun fichier sélectionné."
+            }), 400
+
+        nom = secure_filename(fichier.filename)
+
+        if not nom:
+            return jsonify({
+                "succes": False,
+                "erreur": "Nom de fichier invalide."
+            }), 400
+
+        type_fichier = detecter_type(nom)
+
+        if type_fichier is None:
+            return jsonify({
+                "succes": False,
+                "erreur": (
+                    "Format non supporté. "
+                    "Formats acceptés : "
+                    "JPG, JPEG, PNG, WEBP, BMP, TIFF, "
+                    "MP4, MOV, MKV, AVI, WEBM, M4V et PDF."
+                )
+            }), 400
+
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory(
+            prefix="deskbot_compresseur_"
+        ) as temp_dir:
+
+            temp_dir = Path(temp_dir)
+
+            fichier_original = temp_dir / nom
+            fichier_compresse = (
+                temp_dir /
+                f"{Path(nom).stem}_compressed{Path(nom).suffix}"
+            )
+
+            # Sauvegarde temporaire du fichier envoyé
+            fichier.save(fichier_original)
+
+            print(
+                f"📦 Compression : {nom} "
+                f"({type_fichier})"
+            )
+
+            # Compression
+            resultat = compresser_fichier(
+                fichier_original,
+                fichier_compresse
+            )
+
+            nom_final = fichier_compresse.name
+
+            print(
+                f"✅ Compression terminée : "
+                f"{resultat['taille_avant']} → "
+                f"{resultat['taille_apres']} octets "
+                f"({resultat['reduction']} %)"
+            )
+
+            # Retour du fichier au navigateur
+            return Response(
+                fichier_compresse.read_bytes(),
+                mimetype="application/octet-stream",
+                headers={
+                    "Content-Disposition":
+                        f'attachment; filename="{nom_final}"',
+
+                    "X-Taille-Avant":
+                        str(resultat["taille_avant"]),
+
+                    "X-Taille-Apres":
+                        str(resultat["taille_apres"]),
+
+                    "X-Reduction":
+                        str(resultat["reduction"]),
+
+                    "X-Type":
+                        type_fichier
+                }
+            )
+
+    except ValueError as e:
+        return jsonify({
+            "succes": False,
+            "erreur": str(e)
+        }), 400
+
+    except RuntimeError as e:
+        print("❌ Erreur compresseur :", e)
+
+        return jsonify({
+            "succes": False,
+            "erreur": str(e)
+        }), 500
+
+    except Exception as e:
+        print("❌ Erreur compression :", e)
+
+        return jsonify({
+            "succes": False,
+            "erreur": (
+                "Une erreur est survenue "
+                "pendant la compression."
+            )
+        }), 500
 
 
 # =========================================================
