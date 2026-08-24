@@ -1298,6 +1298,8 @@ def generer_image_route():
     donnees = request.json or {}
 
     prompt = donnees.get("prompt", "").strip()
+    format_image = donnees.get("format", "1:1")
+    qualite = donnees.get("qualite", "moyenne")
 
     if not prompt:
         return jsonify({
@@ -1306,7 +1308,11 @@ def generer_image_route():
         }), 400
 
     try:
-        chemin_image = generer_image(prompt)
+        chemin_image = generer_image(
+            prompt,
+            format_image=format_image,
+            qualite=qualite
+        )
 
         if not chemin_image or not os.path.exists(chemin_image):
             return jsonify({
@@ -1335,7 +1341,6 @@ def generer_image_route():
         return reponse
 
     except Exception as e:
-
         print(
             "❌ Erreur génération image :",
             e
