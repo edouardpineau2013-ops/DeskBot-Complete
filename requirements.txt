@@ -44,6 +44,10 @@ python-docx==1.2.0
 playwright==1.61.0
 pronotepy==2.14.6
 
+Pillow
+pikepdf
+reportlab
+
 psutil==7.2.2
 
 Pillow
