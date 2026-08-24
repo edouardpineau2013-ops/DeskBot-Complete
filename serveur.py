@@ -1,8 +1,10 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
 import os
 import logging
+import tempfile
+import shutil
 
 from werkzeug.utils import secure_filename
 
@@ -62,6 +64,8 @@ from actions.notes import (
 from actions.ia import extraire_fichier_avec_gemini
 
 from actions.compresseur import compresser_fichier, detecter_type
+
+from actions.convertisseur_fichier import convertir_fichier
 
 
 # =========================================================
@@ -1121,7 +1125,7 @@ def compresser():
             # RETOUR DU ZIP
             # =====================================================
 
-            return Response(
+            return send_file(
                 zip_path.read_bytes(),
                 mimetype="application/zip",
                 headers={
