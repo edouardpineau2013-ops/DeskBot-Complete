@@ -67,6 +67,8 @@ from actions.compresseur import compresser_fichier, detecter_type
 
 from actions.convertisseur_fichier import convertir_fichier
 
+from actions.images import generer_image
+
 
 # =========================================================
 # CONFIGURATION
