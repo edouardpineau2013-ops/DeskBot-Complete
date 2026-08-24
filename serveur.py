@@ -1187,6 +1187,98 @@ def compresser():
             )
         }), 500
 
+@app.route("/convertir", methods=["POST"])
+def convertir():
+    fichier = request.files.get("fichier")
+    format_cible = request.form.get("format")
+
+    if not fichier:
+        return jsonify({
+            "erreur": "Aucun fichier fourni."
+        }), 400
+
+    if not fichier.filename:
+        return jsonify({
+            "erreur": "Le fichier n'a pas de nom."
+        }), 400
+
+    if not format_cible:
+        return jsonify({
+            "erreur": "Aucun format de sortie fourni."
+        }), 400
+
+    dossier_temp = tempfile.mkdtemp(
+        prefix="deskbot_conversion_"
+    )
+
+    try:
+        nom_fichier = os.path.basename(
+            fichier.filename
+        )
+
+        chemin_entree = os.path.join(
+            dossier_temp,
+            nom_fichier
+        )
+
+        fichier.save(chemin_entree)
+
+        extension = format_cible.strip().lower()
+
+        if not extension.startswith("."):
+            extension = "." + extension
+
+        nom_sans_extension = os.path.splitext(
+            nom_fichier
+        )[0]
+
+        chemin_sortie = os.path.join(
+            dossier_temp,
+            nom_sans_extension + extension
+        )
+
+        convertir_fichier(
+            chemin_entree,
+            extension,
+            chemin_sortie
+        )
+
+        if not os.path.exists(chemin_sortie):
+            raise RuntimeError(
+                "Le fichier converti n'a pas été créé."
+            )
+
+        reponse = send_file(
+            chemin_sortie,
+            as_attachment=True,
+            download_name=os.path.basename(
+                chemin_sortie
+            )
+        )
+
+        @reponse.call_on_close
+        def nettoyer():
+            shutil.rmtree(
+                dossier_temp,
+                ignore_errors=True
+            )
+
+        return reponse
+
+    except Exception as e:
+
+        shutil.rmtree(
+            dossier_temp,
+            ignore_errors=True
+        )
+
+        print(
+            f"❌ Erreur conversion : {e}"
+        )
+
+        return jsonify({
+            "erreur": str(e)
+        }), 500
 
 # =========================================================
 # COMMANDE DESKBOT
