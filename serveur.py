@@ -1282,6 +1282,70 @@ def convertir():
             "erreur": str(e)
         }), 500
 
+# ---------------------------------------------------------
+# GÉNÉRATION D'IMAGE
+# ---------------------------------------------------------
+
+@app.route("/generer-image", methods=["POST"])
+def generer_image_route():
+
+    if not acces_autorise():
+        return jsonify({
+            "succes": False,
+            "erreur": "Non autorisé"
+        }), 401
+
+    donnees = request.json or {}
+
+    prompt = donnees.get("prompt", "").strip()
+
+    if not prompt:
+        return jsonify({
+            "succes": False,
+            "erreur": "Le prompt est requis."
+        }), 400
+
+    try:
+        chemin_image = generer_image(prompt)
+
+        if not chemin_image or not os.path.exists(chemin_image):
+            return jsonify({
+                "succes": False,
+                "erreur": "L'image n'a pas été générée."
+            }), 500
+
+        reponse = send_file(
+            chemin_image,
+            mimetype="image/jpeg",
+            as_attachment=False,
+            download_name="deskbot_image.jpg"
+        )
+
+        @reponse.call_on_close
+        def nettoyer():
+            try:
+                if os.path.exists(chemin_image):
+                    os.remove(chemin_image)
+            except Exception as e:
+                print(
+                    "⚠️ Impossible de supprimer "
+                    "l'image temporaire :", e
+                )
+
+        return reponse
+
+    except Exception as e:
+
+        print(
+            "❌ Erreur génération image :",
+            e
+        )
+
+        return jsonify({
+            "succes": False,
+            "erreur": str(e)
+        }), 500
+
 # =========================================================
 # COMMANDE DESKBOT
 # =========================================================
