@@ -15,15 +15,56 @@ MODELE_IMAGE = "flux"
 DOSSIER_IMAGES = Path("data/images_temp")
 DOSSIER_IMAGES.mkdir(parents=True, exist_ok=True)
 
+FORMATS_IMAGE = {
+    "1:1": (1, 1),
+    "16:9": (16, 9),
+    "9:16": (9, 16),
+    "4:3": (4, 3),
+    "3:4": (3, 4),
+    "3:2": (3, 2),
+    "2:3": (2, 3),
+}
+
+QUALITES_IMAGE = {
+    "basse": 768,
+    "moyenne": 1024,
+    "haute": 1280,
+    "ultra": 1536,
+}
+
+#CALCULER LES DIMENSIONS
+
+def calculer_dimensions(format_image="1:1", qualite="moyenne"):
+    if format_image not in FORMATS_IMAGE:
+        raise ValueError(
+            f"Format invalide : {format_image}"
+        )
+
+    if qualite not in QUALITES_IMAGE:
+        raise ValueError(
+            f"Qualité invalide : {qualite}"
+        )
+
+    ratio_largeur, ratio_hauteur = FORMATS_IMAGE[format_image]
+    taille = QUALITES_IMAGE[qualite]
+
+    if ratio_largeur >= ratio_hauteur:
+        largeur = taille
+        hauteur = round(taille * ratio_hauteur / ratio_largeur)
+    else:
+        hauteur = taille
+        largeur = round(taille * ratio_largeur / ratio_hauteur)
+
+    return largeur, hauteur
+
 
 # =========================================================
 # GÉNÉRER UNE IMAGE
 # =========================================================
 
-def generer_image(prompt, largeur=1024, hauteur=1024):
+def generer_image(prompt, format_image="1:1", qualite="moyenne"):
     """
     Génère une image avec Pollinations.
-
     Retourne le chemin du fichier généré.
     """
 
@@ -37,8 +78,12 @@ def generer_image(prompt, largeur=1024, hauteur=1024):
             "La variable POLLINATIONS_API_KEY est introuvable."
         )
 
-    prompt = prompt.strip()
+    largeur, hauteur = calculer_dimensions(
+        format_image,
+        qualite
+    )
 
+    prompt = prompt.strip()
     prompt_encode = quote(prompt)
 
     url = (
@@ -59,7 +104,6 @@ def generer_image(prompt, largeur=1024, hauteur=1024):
             headers=headers,
             timeout=180
         )
-
     except requests.RequestException as e:
         raise RuntimeError(
             f"Impossible de contacter Pollinations : {e}"
@@ -67,7 +111,8 @@ def generer_image(prompt, largeur=1024, hauteur=1024):
 
     if reponse.status_code != 200:
         raise RuntimeError(
-            f"Pollinations a retourné HTTP {reponse.status_code} : "
+            f"Pollinations a retourné HTTP "
+            f"{reponse.status_code} : "
             f"{reponse.text[:500]}"
         )
 
@@ -77,13 +122,11 @@ def generer_image(prompt, largeur=1024, hauteur=1024):
         )
 
     nom_fichier = f"image_{uuid.uuid4().hex}.jpg"
-
     chemin = DOSSIER_IMAGES / nom_fichier
 
     try:
         with open(chemin, "wb") as fichier:
             fichier.write(reponse.content)
-
     except OSError as e:
         raise RuntimeError(
             f"Impossible d'enregistrer l'image : {e}"
