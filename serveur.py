@@ -76,7 +76,8 @@ from actions.videos_youtube import (
     rechercher_chaines,
     ajouter_abonnement,
     supprimer_abonnement,
-    obtenir_abonnements
+    obtenir_abonnements,
+    obtenir_dernieres_videos_abonnements
 )
 
 
