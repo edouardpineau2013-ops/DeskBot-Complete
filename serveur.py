@@ -1369,13 +1369,16 @@ def generer_image_route():
 def youtube_recommandations():
 
     try:
+
         nombre = request.args.get(
             "nombre",
             24,
             type=int
         )
 
-        videos = obtenir_recommandations(nombre)
+        videos = obtenir_recommandations(
+            nombre
+        )
 
         return jsonify({
             "success": True,
@@ -1384,7 +1387,41 @@ def youtube_recommandations():
 
     except Exception as e:
 
-        print(f"❌ YouTube recommandations : {e}")
+        print(
+            f"❌ YouTube recommandations : {e}"
+        )
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.get("/youtube/abonnements-videos")
+def youtube_abonnements_videos():
+
+    try:
+
+        nombre = request.args.get(
+            "nombre",
+            24,
+            type=int
+        )
+
+        videos = obtenir_dernieres_videos_abonnements(
+            nombre
+        )
+
+        return jsonify({
+            "success": True,
+            "videos": videos
+        })
+
+    except Exception as e:
+
+        print(
+            f"❌ YouTube abonnements : {e}"
+        )
 
         return jsonify({
             "success": False,
