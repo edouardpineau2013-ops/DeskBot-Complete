@@ -1291,6 +1291,19 @@ def traiter_commande(texte):
     texte_original = texte.strip()
     texte = texte_original.lower()
 
+    # -----------------------------------------------------
+    # SESSION ENVOI DE MAIL
+    # -----------------------------------------------------
+
+    if session_mail["active"]:
+        print(
+            "📧 SESSION MAIL ACTIVE | étape :",
+            session_mail["etape"],
+            "| texte :",
+            texte_original
+        )
+        return traiter_session_mail(texte_original)
+
     if session_revision.active:
 
         if "arrete" in texte and ("revision" in texte or "reviser" in texte):
