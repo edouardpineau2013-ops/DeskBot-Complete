@@ -69,6 +69,16 @@ from actions.convertisseur_fichier import convertir_fichier
 
 from actions.images import generer_image
 
+from actions.videos_youtube import (
+    rechercher_videos,
+    obtenir_video,
+    obtenir_recommandations,
+    rechercher_chaines,
+    ajouter_abonnement,
+    supprimer_abonnement,
+    obtenir_abonnements
+)
+
 
 # =========================================================
 # CONFIGURATION
@@ -1350,6 +1360,207 @@ def generer_image_route():
             "succes": False,
             "erreur": str(e)
         }), 500
+
+# =========================================================
+# YOUTUBE
+# =========================================================
+
+@app.get("/youtube/recommandations")
+def youtube_recommandations():
+
+    try:
+        nombre = request.args.get(
+            "nombre",
+            24,
+            type=int
+        )
+
+        videos = obtenir_recommandations(nombre)
+
+        return jsonify({
+            "success": True,
+            "videos": videos
+        })
+
+    except Exception as e:
+
+        print(f"❌ YouTube recommandations : {e}")
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.get("/youtube/rechercher")
+def youtube_rechercher():
+
+    recherche = request.args.get(
+        "q",
+        "",
+        type=str
+    )
+
+    if not recherche.strip():
+
+        return jsonify({
+            "success": False,
+            "error": "Recherche vide."
+        }), 400
+
+    try:
+
+        videos = rechercher_videos(
+            recherche,
+            24
+        )
+
+        return jsonify({
+            "success": True,
+            "videos": videos
+        })
+
+    except Exception as e:
+
+        print(f"❌ YouTube recherche : {e}")
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.get("/youtube/video/<video_id>")
+def youtube_video(video_id):
+
+    try:
+
+        video = obtenir_video(video_id)
+
+        if not video:
+
+            return jsonify({
+                "success": False,
+                "error": "Vidéo introuvable."
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "video": video
+        })
+
+    except Exception as e:
+
+        print(f"❌ YouTube vidéo : {e}")
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.get("/youtube/chaines")
+def youtube_chaines():
+
+    recherche = request.args.get(
+        "q",
+        "",
+        type=str
+    )
+
+    if not recherche.strip():
+
+        return jsonify({
+            "success": False,
+            "error": "Recherche vide."
+        }), 400
+
+    try:
+
+        chaines = rechercher_chaines(
+            recherche,
+            12
+        )
+
+        return jsonify({
+            "success": True,
+            "chaines": chaines
+        })
+
+    except Exception as e:
+
+        print(f"❌ YouTube chaînes : {e}")
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.get("/youtube/abonnements")
+def youtube_abonnements():
+
+    try:
+
+        return jsonify({
+            "success": True,
+            "abonnements": obtenir_abonnements()
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.post("/youtube/abonner")
+def youtube_abonner():
+
+    donnees = request.get_json(silent=True) or {}
+
+    channel_id = donnees.get("channel_id")
+    nom = donnees.get("nom")
+
+    if not channel_id:
+
+        return jsonify({
+            "success": False,
+            "error": "channel_id manquant."
+        }), 400
+
+    success = ajouter_abonnement(
+        channel_id,
+        nom
+    )
+
+    return jsonify({
+        "success": success
+    })
+
+
+@app.post("/youtube/desabonner")
+def youtube_desabonner():
+
+    donnees = request.get_json(silent=True) or {}
+
+    channel_id = donnees.get("channel_id")
+
+    if not channel_id:
+
+        return jsonify({
+            "success": False,
+            "error": "channel_id manquant."
+        }), 400
+
+    success = supprimer_abonnement(
+        channel_id
+    )
+
+    return jsonify({
+        "success": success
+    })
 
 # =========================================================
 # COMMANDE DESKBOT
