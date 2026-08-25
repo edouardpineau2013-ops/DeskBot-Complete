@@ -7,6 +7,7 @@ import json
 import requests
 from pathlib import Path
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone, timedelta
 
 
 # =========================================================
@@ -353,7 +354,7 @@ def obtenir_videos_chaine(channel_id, nombre=12):
     return videos
 
 # =========================================================
-# RÉCUPÉRATION RSS YOUTUBE
+# RSS YOUTUBE
 # =========================================================
 
 def obtenir_videos_rss(channel_id, nombre=15):
@@ -377,15 +378,15 @@ def obtenir_videos_rss(channel_id, nombre=15):
         )
 
         if response.status_code != 200:
-
             print(
                 f"❌ RSS YouTube {channel_id} : "
                 f"HTTP {response.status_code}"
             )
-
             return []
 
-        root = ET.fromstring(response.content)
+        root = ET.fromstring(
+            response.content
+        )
 
         namespace = {
             "atom": "http://www.w3.org/2005/Atom",
@@ -394,7 +395,6 @@ def obtenir_videos_rss(channel_id, nombre=15):
 
         videos = []
 
-        # Nom de la chaîne
         titre_chaine = ""
 
         titre_element = root.find(
@@ -405,7 +405,7 @@ def obtenir_videos_rss(channel_id, nombre=15):
         if titre_element is not None:
             titre_chaine = (
                 titre_element.text or ""
-            )
+            ).strip()
 
         for entry in root.findall(
             "atom:entry",
@@ -434,6 +434,9 @@ def obtenir_videos_rss(channel_id, nombre=15):
                 video_id_element.text or ""
             ).strip()
 
+            if not video_id:
+                continue
+
             titre = ""
 
             if titre_element is not None:
@@ -448,9 +451,6 @@ def obtenir_videos_rss(channel_id, nombre=15):
                     date_element.text or ""
                 ).strip()
 
-            if not video_id:
-                continue
-
             videos.append({
                 "id": video_id,
                 "titre": titre,
@@ -460,77 +460,45 @@ def obtenir_videos_rss(channel_id, nombre=15):
                     f"{video_id}/hqdefault.jpg"
                 ),
                 "avatar": "",
-                "date": date,
-                "source": "abonnement"
+                "date": date
             })
 
             if len(videos) >= nombre:
                 break
 
-        print(
-            f"📡 RSS {titre_chaine} : "
-            f"{len(videos)} vidéos"
-        )
-
         return videos
-
-    except ET.ParseError as e:
-
-        print(
-            f"❌ RSS YouTube XML invalide "
-            f"{channel_id} : {e}"
-        )
-
-        return []
-
-    except requests.RequestException as e:
-
-        print(
-            f"❌ Erreur réseau RSS YouTube "
-            f"{channel_id} : {e}"
-        )
-
-        return []
 
     except Exception as e:
 
         print(
-            f"❌ Erreur RSS YouTube "
-            f"{channel_id} : {e}"
+            f"❌ Erreur RSS YouTube : {e}"
         )
 
         return []
 
 
 # =========================================================
-# RECOMMANDATIONS
+# VIDÉOS DES ABONNEMENTS
 # =========================================================
 
-def obtenir_recommandations(nombre=24):
-
-    """
-    Génère la page "Pour toi" de DeskTube.
-
-    Les vidéos sont récupérées depuis les flux RSS
-    des chaînes auxquelles l'utilisateur est abonné.
-
-    Cette fonction n'utilise pas l'API YouTube Search.
-    """
-
-    nombre = max(
-        1,
-        min(int(nombre), 50)
-    )
+def obtenir_videos_abonnements(
+    nombre=50,
+    seulement_trois_jours=False
+):
 
     abonnements = charger_abonnements()
 
-    recommandations = []
+    videos = []
 
     ids_deja_vus = set()
 
-    # -----------------------------------------------------
-    # RÉCUPÉRATION DES VIDÉOS DES ABONNEMENTS
-    # -----------------------------------------------------
+    maintenant = datetime.now(
+        timezone.utc
+    )
+
+    limite = maintenant - timedelta(
+        days=3
+    )
 
     for abonnement in abonnements:
 
@@ -547,12 +515,12 @@ def obtenir_recommandations(nombre=24):
         if not channel_id:
             continue
 
-        videos = obtenir_videos_rss(
+        flux = obtenir_videos_rss(
             channel_id,
             nombre=15
         )
 
-        for video in videos:
+        for video in flux:
 
             video_id = video.get("id")
 
@@ -562,17 +530,45 @@ def obtenir_recommandations(nombre=24):
             if video_id in ids_deja_vus:
                 continue
 
+            # ---------------------------------------------
+            # FILTRE 3 JOURS
+            # ---------------------------------------------
+
+            if seulement_trois_jours:
+
+                date_video = video.get(
+                    "date"
+                )
+
+                if not date_video:
+                    continue
+
+                try:
+
+                    date_video = datetime.fromisoformat(
+                        date_video.replace(
+                            "Z",
+                            "+00:00"
+                        )
+                    )
+
+                    if date_video < limite:
+                        continue
+
+                except ValueError:
+
+                    continue
+
             video["source"] = "abonnement"
 
-            recommandations.append(video)
+            videos.append(video)
 
-            ids_deja_vus.add(video_id)
+            ids_deja_vus.add(
+                video_id
+            )
 
-    # -----------------------------------------------------
-    # TRI PAR DATE
-    # -----------------------------------------------------
-
-    recommandations.sort(
+    # Plus récent → plus ancien
+    videos.sort(
         key=lambda video: video.get(
             "date",
             ""
@@ -580,21 +576,54 @@ def obtenir_recommandations(nombre=24):
         reverse=True
     )
 
-    # -----------------------------------------------------
-    # LIMITE FINALE
-    # -----------------------------------------------------
+    return videos[:nombre]
 
-    recommandations = (
-        recommandations[:nombre]
+
+# =========================================================
+# POUR TOI
+# =========================================================
+
+def obtenir_recommandations(nombre=24):
+
+    """
+    Mix de toutes les vidéos disponibles
+    provenant des abonnements.
+    """
+
+    videos = obtenir_videos_abonnements(
+        nombre=50,
+        seulement_trois_jours=False
     )
 
-    print(
-        "📺 Recommandations RSS :",
-        len(recommandations),
-        "vidéos"
+    # Mélange pour éviter d'avoir
+    # 15 vidéos de la même chaîne d'affilée.
+
+    import random
+
+    random.shuffle(videos)
+
+    return videos[:nombre]
+
+
+# =========================================================
+# ABONNEMENTS
+# =========================================================
+
+def obtenir_dernieres_videos_abonnements(
+    nombre=24
+):
+
+    """
+    Dernières vidéos des abonnements
+    publiées pendant les 3 derniers jours.
+    """
+
+    videos = obtenir_videos_abonnements(
+        nombre=50,
+        seulement_trois_jours=True
     )
 
-    return recommandations
+    return videos[:nombre]
 
 
 # =========================================================
