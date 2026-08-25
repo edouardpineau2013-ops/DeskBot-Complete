@@ -1373,7 +1373,7 @@ def youtube_recommandations():
 
         nombre = request.args.get(
             "nombre",
-            24,
+            40,
             type=int
         )
 
@@ -1405,7 +1405,7 @@ def youtube_abonnements_videos():
 
         nombre = request.args.get(
             "nombre",
-            24,
+            40,
             type=int
         )
 
@@ -1450,7 +1450,7 @@ def youtube_rechercher():
 
         videos = rechercher_videos(
             recherche,
-            24
+            40
         )
 
         return jsonify({
