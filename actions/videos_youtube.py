@@ -6,6 +6,7 @@ import os
 import json
 import requests
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 
 # =========================================================
@@ -351,89 +352,249 @@ def obtenir_videos_chaine(channel_id, nombre=12):
 
     return videos
 
+# =========================================================
+# RÉCUPÉRATION RSS YOUTUBE
+# =========================================================
+
+def obtenir_videos_rss(channel_id, nombre=15):
+
+    if not channel_id:
+        return []
+
+    try:
+
+        url = (
+            "https://www.youtube.com/feeds/videos.xml"
+            f"?channel_id={channel_id}"
+        )
+
+        response = requests.get(
+            url,
+            timeout=10,
+            headers={
+                "User-Agent": "DeskTube/1.0"
+            }
+        )
+
+        if response.status_code != 200:
+
+            print(
+                f"❌ RSS YouTube {channel_id} : "
+                f"HTTP {response.status_code}"
+            )
+
+            return []
+
+        root = ET.fromstring(response.content)
+
+        namespace = {
+            "atom": "http://www.w3.org/2005/Atom",
+            "yt": "http://www.youtube.com/xml/schemas/2015"
+        }
+
+        videos = []
+
+        # Nom de la chaîne
+        titre_chaine = ""
+
+        titre_element = root.find(
+            "atom:title",
+            namespace
+        )
+
+        if titre_element is not None:
+            titre_chaine = (
+                titre_element.text or ""
+            )
+
+        for entry in root.findall(
+            "atom:entry",
+            namespace
+        ):
+
+            video_id_element = entry.find(
+                "yt:videoId",
+                namespace
+            )
+
+            titre_element = entry.find(
+                "atom:title",
+                namespace
+            )
+
+            date_element = entry.find(
+                "atom:published",
+                namespace
+            )
+
+            if video_id_element is None:
+                continue
+
+            video_id = (
+                video_id_element.text or ""
+            ).strip()
+
+            titre = ""
+
+            if titre_element is not None:
+                titre = (
+                    titre_element.text or ""
+                ).strip()
+
+            date = ""
+
+            if date_element is not None:
+                date = (
+                    date_element.text or ""
+                ).strip()
+
+            if not video_id:
+                continue
+
+            videos.append({
+                "id": video_id,
+                "titre": titre,
+                "chaine": titre_chaine,
+                "miniature": (
+                    f"https://i.ytimg.com/vi/"
+                    f"{video_id}/hqdefault.jpg"
+                ),
+                "avatar": "",
+                "date": date,
+                "source": "abonnement"
+            })
+
+            if len(videos) >= nombre:
+                break
+
+        print(
+            f"📡 RSS {titre_chaine} : "
+            f"{len(videos)} vidéos"
+        )
+
+        return videos
+
+    except ET.ParseError as e:
+
+        print(
+            f"❌ RSS YouTube XML invalide "
+            f"{channel_id} : {e}"
+        )
+
+        return []
+
+    except requests.RequestException as e:
+
+        print(
+            f"❌ Erreur réseau RSS YouTube "
+            f"{channel_id} : {e}"
+        )
+
+        return []
+
+    except Exception as e:
+
+        print(
+            f"❌ Erreur RSS YouTube "
+            f"{channel_id} : {e}"
+        )
+
+        return []
+
 
 # =========================================================
 # RECOMMANDATIONS
 # =========================================================
 
 def obtenir_recommandations(nombre=24):
-    """
-    Génère une page d'accueil personnalisée.
 
-    Les chaînes auxquelles l'utilisateur est abonné
-    ont davantage de poids dans les recommandations.
+    """
+    Génère la page "Pour toi" de DeskTube.
+
+    Les vidéos sont récupérées depuis les flux RSS
+    des chaînes auxquelles l'utilisateur est abonné.
+
+    Cette fonction n'utilise pas l'API YouTube Search.
     """
 
-    nombre = max(1, min(int(nombre), 50))
+    nombre = max(
+        1,
+        min(int(nombre), 50)
+    )
 
     abonnements = charger_abonnements()
 
     recommandations = []
+
     ids_deja_vus = set()
 
     # -----------------------------------------------------
-    # 1. Vidéos des abonnements
+    # RÉCUPÉRATION DES VIDÉOS DES ABONNEMENTS
     # -----------------------------------------------------
 
     for abonnement in abonnements:
-        channel_id = abonnement.get("channel_id")
+
+        if not isinstance(
+            abonnement,
+            dict
+        ):
+            continue
+
+        channel_id = abonnement.get(
+            "channel_id"
+        )
 
         if not channel_id:
             continue
 
-        videos = obtenir_videos_chaine(
+        videos = obtenir_videos_rss(
             channel_id,
-            nombre=6
+            nombre=15
         )
 
         for video in videos:
-            if video["id"] in ids_deja_vus:
+
+            video_id = video.get("id")
+
+            if not video_id:
+                continue
+
+            if video_id in ids_deja_vus:
                 continue
 
             video["source"] = "abonnement"
 
             recommandations.append(video)
-            ids_deja_vus.add(video["id"])
+
+            ids_deja_vus.add(video_id)
 
     # -----------------------------------------------------
-    # 2. Compléter avec une recherche générale
+    # TRI PAR DATE
     # -----------------------------------------------------
 
-    if len(recommandations) < nombre:
+    recommandations.sort(
+        key=lambda video: video.get(
+            "date",
+            ""
+        ),
+        reverse=True
+    )
 
-        recherches = [
-            "technologie",
-            "gaming",
-            "science",
-            "informatique",
-            "actualité",
-            "divertissement"
-        ]
+    # -----------------------------------------------------
+    # LIMITE FINALE
+    # -----------------------------------------------------
 
-        for recherche in recherches:
+    recommandations = (
+        recommandations[:nombre]
+    )
 
-            videos = rechercher_videos(
-                recherche,
-                nombre=8
-            )
+    print(
+        "📺 Recommandations RSS :",
+        len(recommandations),
+        "vidéos"
+    )
 
-            for video in videos:
-
-                if video["id"] in ids_deja_vus:
-                    continue
-
-                video["source"] = "general"
-
-                recommandations.append(video)
-                ids_deja_vus.add(video["id"])
-
-                if len(recommandations) >= nombre:
-                    break
-
-            if len(recommandations) >= nombre:
-                break
-
-    return recommandations[:nombre]
+    return recommandations
 
 
 # =========================================================
