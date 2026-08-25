@@ -2,6 +2,8 @@ import os
 import json
 import threading
 import time
+from email.mime.text import MIMEText
+import base64
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -9,105 +11,60 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 from audio.voix import parler, notifier_telephone
-from actions.notifications import notifier_telephone
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.send"
+]
 
 FICHIER_VUS = "data/mails_vus.json"
 
 gestionnaire_mails_lance = False
 
 
-def _chemin_secret(nom):
-    chemin_render = f"/etc/secrets/{nom}"
-
-    if os.path.exists(chemin_render):
-        return chemin_render
-
-    return nom
-
-
-def _chemin_token_mail():
-    # Sur Render, le token initial vient du Secret File.
-    # Le token rafraîchi est conservé temporairement dans /tmp.
-    if os.path.exists("/etc/secrets/token_mail.json"):
-        return "/tmp/token_mail.json"
-
-    return "token_mail.json"
-
-
 def _obtenir_service():
     creds = None
 
-    fichier_token_source = _chemin_secret("token_mail.json")
-    fichier_token = _chemin_token_mail()
-    fichier_credentials = _chemin_secret("credentials_mail.json")
-
     # Récupération de la connexion déjà enregistrée
-    if os.path.exists(fichier_token):
+    if os.path.exists("token_mail.json"):
         creds = Credentials.from_authorized_user_file(
-            fichier_token,
+            "token_mail.json",
             SCOPES
         )
-
-    elif os.path.exists(fichier_token_source):
-        creds = Credentials.from_authorized_user_file(
-            fichier_token_source,
-            SCOPES
-        )
-
-        # Copie initiale dans /tmp sur Render
-        if fichier_token != fichier_token_source:
-            with open(fichier_token, "w", encoding="utf-8") as f:
-                f.write(creds.to_json())
 
     # Connexion encore valide
     if creds and creds.valid:
-        return build(
-            "gmail",
-            "v1",
-            credentials=creds
-        )
+        return build("gmail", "v1", credentials=creds)
 
-    # Token expiré mais renouvelable
+    # Le token d'accès a expiré, mais le refresh token permet
+    # de le renouveler automatiquement.
     if creds and creds.expired and creds.refresh_token:
         try:
             creds.refresh(Request())
 
-            with open(fichier_token, "w", encoding="utf-8") as f:
+            with open("token_mail.json", "w", encoding="utf-8") as f:
                 f.write(creds.to_json())
 
-            return build(
-                "gmail",
-                "v1",
-                credentials=creds
-            )
+            return build("gmail", "v1", credentials=creds)
 
         except Exception as e:
             print("⚠️ Impossible de renouveler le token Gmail :", e)
-            print("⚠️ Le refresh token est invalide.")
+            print("⚠️ Le refresh token est invalide. Autorisation Gmail nécessaire.")
             return None
 
-    # Première connexion
-    if os.path.exists("/etc/secrets/token_mail.json"):
-        print("❌ Token Gmail Render invalide ou expiré sans refresh token.")
-        return None
-    
+    # Première connexion OU ancienne connexion révoquée
     flow = InstalledAppFlow.from_client_secrets_file(
-        fichier_credentials,
+        "credentials_mail.json",
         SCOPES
     )
-    
+
     creds = flow.run_local_server(port=0)
 
-    with open(fichier_token, "w", encoding="utf-8") as f:
+    # On sauvegarde le refresh token
+    with open("token_mail.json", "w", encoding="utf-8") as f:
         f.write(creds.to_json())
 
-    return build(
-        "gmail",
-        "v1",
-        credentials=creds
-    )
+    return build("gmail", "v1", credentials=creds)
 
 
 def _charger_vus():
@@ -207,3 +164,30 @@ def lancer_gestionnaire_mails():
     thread.start()
     gestionnaire_mails_lance = True
     print("📧 Gestionnaire Mails lancé.")
+
+def envoyer_mail(destinataire, sujet, contenu):
+    """Envoie un mail via Gmail."""
+
+    service = _obtenir_service()
+
+    if service is None:
+        raise Exception("Impossible de se connecter à Gmail.")
+
+    message = MIMEText(contenu, "plain", "utf-8")
+    message["to"] = destinataire
+    message["subject"] = sujet
+
+    message_encode = base64.urlsafe_b64encode(
+        message.as_bytes()
+    ).decode()
+
+    resultat = service.users().messages().send(
+        userId="me",
+        body={
+            "raw": message_encode
+        }
+    ).execute()
+
+    print("📧 Mail envoyé :", resultat.get("id"))
+
+    return True
