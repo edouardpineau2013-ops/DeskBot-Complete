@@ -124,7 +124,7 @@ def formater_video(video):
 # RECHERCHE DE VIDÉOS
 # =========================================================
 
-def rechercher_videos(recherche, nombre=24):
+def rechercher_videos(recherche, nombre=40):
     """
     Recherche des vidéos YouTube.
     """
@@ -583,7 +583,7 @@ def obtenir_videos_abonnements(
 # POUR TOI
 # =========================================================
 
-def obtenir_recommandations(nombre=24):
+def obtenir_recommandations(nombre=40):
 
     """
     Mix de toutes les vidéos disponibles
@@ -610,7 +610,7 @@ def obtenir_recommandations(nombre=24):
 # =========================================================
 
 def obtenir_dernieres_videos_abonnements(
-    nombre=24
+    nombre=40
 ):
 
     """
