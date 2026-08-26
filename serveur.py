@@ -33,7 +33,8 @@ from auth import (
 from actions.temps import lancer_gestionnaire
 from actions.mail import (
     lancer_gestionnaire_mails,
-    etat_mails_non_lus
+    etat_mails_non_lus,
+    envoyer_mail
 )
 
 from actions.profil_revision import (
@@ -273,6 +274,34 @@ def afficher_mails():
     return jsonify({
         "non_lus": total,
         "mails": mails
+    })
+
+@app.route("/mails/envoyer", methods=["POST"])
+def route_envoyer_mail():
+
+    if not acces_autorise():
+        return jsonify({"erreur": "Non autorisé"}), 401
+
+    donnees = request.get_json()
+
+    if not donnees:
+        return jsonify({
+            "erreur": "Données manquantes."
+        }), 400
+
+    destinataire = donnees.get("destinataire", "").strip()
+    objet = donnees.get("objet", "").strip()
+    contenu = donnees.get("contenu", "").strip()
+
+    if not destinataire or not objet or not contenu:
+        return jsonify({
+            "erreur": "Tous les champs sont obligatoires."
+        }), 400
+
+    envoyer_mail(destinataire, objet, contenu)
+
+    return jsonify({
+        "message": "Mail envoyé !"
     })
 
 
