@@ -81,6 +81,8 @@ from actions.videos_youtube import (
     obtenir_dernieres_videos_abonnements
 )
 
+from actions.mots_de_passes import generer_mot_de_passe
+
 
 # =========================================================
 # CONFIGURATION
@@ -1627,6 +1629,38 @@ def youtube_desabonner():
 
     return jsonify({
         "success": success
+    })
+
+@app.route("/mots-de-passes", methods=["POST"])
+def mots_de_passes():
+    if not acces_autorise():
+        return jsonify({"erreur": "Non autorisé"}), 401
+
+    donnees = request.get_json()
+    if not donnees:
+        return jsonify({"erreur": "Données manquantes."}), 400
+
+    try:
+        longueur = int(donnees.get("longueur", 16))
+        
+        majuscules = bool(donnees.get("majuscules", True))
+        minuscules = bool(donnees.get("minuscules", True))
+        chiffres = bool(donnees.get("chiffres", True))
+        symboles = bool(donnees.get("symboles", False))
+        exclure_ambigus = bool(donnees.get("exclure_ambigus", False))
+        
+    except (ValueError, TypeError):
+        return jsonify({"erreur": "Format des paramètres invalide."}), 400
+
+    try:
+        mot_de_passe = generer_mot_de_passe(
+            longueur, majuscules, minuscules, chiffres, symboles, exclure_ambigus
+        )
+    except Exception as e:
+        return jsonify({"erreur": f"Erreur de génération : {str(e)}"}), 500
+
+    return jsonify({
+        "mot_de_passe": mot_de_passe
     })
 
 # =========================================================
