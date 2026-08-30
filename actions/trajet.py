@@ -5,8 +5,13 @@ CLE_API_ORS = os.environ.get("ORS_API_KEY", "")
 
 PROFILS = {
     "voiture": "driving-car",
+    "en voiture": "driving-car",
+    "vélo": "cycling-regular",
     "velo": "cycling-regular",
+    "en vélo": "cycling-regular",
+    "en velo": "cycling-regular",
     "pied": "foot-walking",
+    "à pied": "foot-walking",
 }
 
 
