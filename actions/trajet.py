@@ -18,7 +18,7 @@ PROFILS = {
 def _geocoder(adresse):
     """Convertit un nom de lieu en (longitude, latitude)."""
 
-    url = "https://api.openrouteservice.org/geocode/search"
+    url = "https://api.heigit.org/geocode/search"
     params = {"api_key": CLE_API_ORS, "text": adresse, "size": 1}
 
     try:
@@ -49,7 +49,7 @@ def calculer_trajet(depart, arrivee, mode="voiture"):
 
     profil = PROFILS.get(mode, "driving-car")
 
-    url = f"https://api.openrouteservice.org/v2/directions/{profil}"
+    url = f"https://api.heigit.org/v2/directions/{profil}"
     params = {
         "api_key": CLE_API_ORS,
         "start": f"{coord_depart[0]},{coord_depart[1]}",
