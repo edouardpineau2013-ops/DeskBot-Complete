@@ -23,7 +23,7 @@ PROFILS = {
 def _geocoder(adresse):
     """Convertit un nom de lieu en (longitude, latitude)."""
 
-    url = "https://api.openrouteservice.org/geocode/search"
+    url = "https://api.heigit.org/pelias/v1/search"
 
     params = {
         "api_key": CLE_API_ORS,
@@ -148,7 +148,7 @@ def calculer_trajet(depart, arrivee, mode):
     # DIRECTIONS
     # =====================================================
 
-    url = f"https://api.openrouteservice.org/v2/directions/{profil}"
+    url = f"https://api.heigit.org/openrouteservice/v2/directions/{profil}"
 
     headers = {
         "Authorization": CLE_API_ORS,
@@ -188,11 +188,7 @@ def calculer_trajet(depart, arrivee, mode):
     try:
         donnees = reponse.json()
 
-        resume = (
-            donnees["features"][0]
-            ["properties"]
-            ["summary"]
-        )
+        resume = donnees["routes"][0]["summary"]
 
         distance_km = resume["distance"] / 1000
         duree_minutes = resume["duration"] / 60
