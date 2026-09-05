@@ -2,6 +2,7 @@ from rapidfuzz import process, fuzz
 import re
 from datetime import datetime, timedelta
 from villes import VILLES
+from actions.dernier_recours_commande import reconnaitre_commande_avec_groq
 from actions.heure import heure
 from actions.calcul import calculer
 from actions.systeme import executer
