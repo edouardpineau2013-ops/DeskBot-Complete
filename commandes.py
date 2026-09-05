@@ -1733,19 +1733,10 @@ def trouver_commande(texte):
     # COMMANDES SIMPLES CLASSIQUES
     # =====================================================
 
-    commande = _meilleure_commande(texte, COMMANDES)
-
-    if commande:
-        return commande
-
-    # =====================================================
-    # DERNIER RECOURS : MUSIQUE
-    # =====================================================
-
     commande = _meilleure_commande(
         texte,
-        {"musique": COMMANDES_MUSIQUE["musique"]},
-        seuil=85
+        COMMANDES,
+        seuil=90
     )
 
     if commande:
