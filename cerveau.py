@@ -1336,11 +1336,15 @@ def traiter_commande(texte):
     commande = trouver_commande(texte)
 
     print("Commande reconnue :", commande)
-    
-    commande = trouver_commande(texte)
-
     print("Texte :", texte)
-    print("Commande :", commande)
+
+    if commande is None:
+        resultat_groq = executer_commande_groq(texte)
+
+        if resultat_groq is not None:
+            return resultat_groq
+
+        return "Je n'ai pas compris."
 
     if commande == "bonjour":
         return "Bonjour !"
